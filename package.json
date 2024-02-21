@@ -1,0 +1,32 @@
+{
+  "name": "rinha-fastify",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node-dev src/index.ts",
+    "trace": "ts-node-dev --trace-events-enabled src/index.ts src/index.ts",
+    "build": "tsc",
+    "build:run": "tsc && node build/index.js",
+    "build:trace": "tsc && node --trace-events-enabled build/index.js",
+    "build:prof": "tsc && NODE_ENV=production node --prof build/index.js"
+  },
+  "keywords": [],
+  "author": "Zetos",
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^4.26.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}
