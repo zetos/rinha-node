@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { updateClientBalance } from './db';
+import { transactionUpdateBalance } from './db';
 
 const fastify = Fastify({
   logger: true,
@@ -35,26 +35,25 @@ fastify.post<{ Params: Params }>(
   },
   async (req, res) => {
     const { id } = req.params;
-    const clientId: number = Number(id); // TODO: check if it is a number
+    const clientId: number = Number(id);
     // if (clientId < 0) { // cheat and add a clientId > 5 check?
     //     reply.code(404).send({ error: 'Not Found' });
     // }
-
-    // const { valor, tipo, descricao } = req.body as Transaction;
 
     const bodyData = req.body as Transaction;
 
     console.log('Client id:', clientId);
     console.log('Client bodyData:', bodyData);
 
-    const result = await updateClientBalance(
+    const result = await transactionUpdateBalance(
       clientId,
       bodyData.tipo,
       bodyData.valor,
+      bodyData.descricao,
     );
 
     console.log('result:', result);
-    if (result) {
+    if (result.updated) {
       res.code(200).send({
         limite: result.lim,
         saldo: result.bal,
@@ -75,7 +74,7 @@ fastify.get<{ Params: Params }>(
   },
   (req, res) => {
     const { id } = req.params;
-    const clientId: number = Number(id); // TODO: check if it is a number
+    const clientId: number = Number(id);
     // if (clientId < 0) { // cheat and add a clientId > 5 check?
     //     reply.code(404).send({ error: 'Not Found' });
     // }
