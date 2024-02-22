@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { transactionUpdateBalance } from './db';
+import { getBalance, transactionUpdateBalance } from './db';
 
 const fastify = Fastify({
   logger: true,
@@ -72,36 +72,22 @@ fastify.get<{ Params: Params }>(
       params: { type: 'object', properties: { id: { type: 'integer' } } },
     },
   },
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params;
     const clientId: number = Number(id);
     // if (clientId < 0) { // cheat and add a clientId > 5 check?
     //     reply.code(404).send({ error: 'Not Found' });
     // }
 
-    console.log('Client id:', clientId);
+    const balance = await getBalance(clientId);
 
     res.code(200).send({
       saldo: {
-        total: -9098,
-        data_extrato: '2024-01-17T02:34:41.217753Z',
-        limite: 100000,
+        total: balance.bal,
+        data_extrato: balance.current_time,
+        limite: balance.lim,
       },
-      // last 10
-      ultimas_transacoes: [
-        {
-          valor: 10,
-          tipo: 'c',
-          descricao: 'descricao',
-          realizada_em: '2024-01-17T02:34:38.543030Z',
-        },
-        {
-          valor: 90000,
-          tipo: 'd',
-          descricao: 'descricao',
-          realizada_em: '2024-01-17T02:34:38.543030Z',
-        },
-      ],
+      ultimas_transacoes: balance.transactions,
     });
   },
 );

@@ -2,6 +2,22 @@ import { Pool, QueryResult } from 'pg';
 
 type UpdateResult = { bal: number; lim: number; updated: boolean };
 
+interface BalanceAndTransactions {
+  bal: number;
+  lim: number;
+  transactions: Transaction[];
+  current_time: Date;
+}
+
+interface Transaction {
+  id: number;
+  cid: number;
+  amount: number;
+  type: string;
+  c_at: Date;
+  descr: string;
+}
+
 const pool = new Pool({
   user: 'postgres',
   host: '172.17.0.2',
@@ -104,4 +120,35 @@ const transactionUpdateBalance = async (
 //       [clientID],
 //     );
 
-export { transactionUpdateBalance };
+const getBalance = async (
+  clientId: number,
+): Promise<BalanceAndTransactions> => {
+  const client = await pool.connect();
+
+  try {
+    const { rows } = await client.query(
+      `WITH client_balance AS (
+       SELECT bal, lim
+       FROM client
+       WHERE id = $1
+     )
+     SELECT cb.bal, cb.lim, NOW() as current_time, json_agg(json_build_object('valor', t.amount, 'tipo', t.type, 'realizada_em', t.c_at, 'descricao', t.descr)) AS transactions
+     FROM client_balance cb
+     LEFT JOIN (
+       SELECT *
+       FROM transaction
+       WHERE cid = $1
+       ORDER BY c_at DESC
+       LIMIT 10
+     ) t ON true
+     GROUP BY cb.bal, cb.lim`,
+      [clientId],
+    );
+
+    return rows[0] as BalanceAndTransactions;
+  } finally {
+    client.release();
+  }
+};
+
+export { transactionUpdateBalance, getBalance };
