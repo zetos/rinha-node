@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { updateClientBalance } from './db';
 
 const fastify = Fastify({
   logger: true,
@@ -32,7 +33,7 @@ fastify.post<{ Params: Params }>(
       body: tBodySchema,
     },
   },
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params;
     const clientId: number = Number(id); // TODO: check if it is a number
     // if (clientId < 0) { // cheat and add a clientId > 5 check?
@@ -46,13 +47,21 @@ fastify.post<{ Params: Params }>(
     console.log('Client id:', clientId);
     console.log('Client bodyData:', bodyData);
 
-    // limite deve ser o limite cadastrado do cliente.
-    // saldo deve ser o novo saldo após a conclusão da transação.
+    const result = await updateClientBalance(
+      clientId,
+      bodyData.tipo,
+      bodyData.valor,
+    );
 
-    res.code(200).send({
-      limite: 100000,
-      saldo: -9098,
-    });
+    console.log('result:', result);
+    if (result) {
+      res.code(200).send({
+        limite: result.lim,
+        saldo: result.bal,
+      });
+    } else {
+      res.code(422).send();
+    }
   },
 );
 
