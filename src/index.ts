@@ -1,61 +1,104 @@
 import Fastify from 'fastify';
-import crypto from 'crypto';
 
 const fastify = Fastify({
-  logger: false,
+  logger: true,
 });
 
-interface Users {
-  [key: string]: { salt: string; hash: Buffer };
+interface Params {
+  id: number;
 }
 
-const users: Users = {};
+interface Transaction {
+  valor: number;
+  tipo: 'c' | 'd';
+  descricao: string;
+}
 
-fastify.get('/newUser', (req, res) => {
-  let username = (req.query as { username?: string }).username || '';
-  const password = (req.query as { password?: string }).password || '';
+const tBodySchema = {
+  type: 'object',
+  required: ['valor', 'tipo', 'descricao'],
+  properties: {
+    valor: { type: 'integer', minimum: 0 },
+    tipo: { type: 'string', enum: ['c', 'd'] },
+    descricao: { type: 'string', minLength: 1, maxLength: 10 },
+  },
+};
 
-  username = username.replace(/[!@#$%^&*]/g, '');
-
-  if (!username || !password || users[username]) {
-    return res.code(400).send();
-  }
-
-  const salt = crypto.randomBytes(128).toString('base64');
-
-  const hash = crypto.pbkdf2Sync(password, salt, 10000, 512, 'sha512');
-  users[username] = { salt, hash };
-
-  res.code(200).send();
-});
-
-fastify.get('/auth', (req, res) => {
-  let username = (req.query as { username?: string }).username || '';
-  const password = (req.query as { password?: string }).password || '';
-
-  username = username.replace(/[!@#$%^&*]/g, '');
-
-  if (!username || !password || !users[username]) {
-    return res.code(400).send();
-  }
-
-  crypto.pbkdf2(
-    password,
-    users[username].salt,
-    10000,
-    512,
-    'sha512',
-    (err, hash) => {
-      if (users[username].hash.toString() === hash.toString()) {
-        res.code(200).send();
-      } else {
-        res.code(401).send();
-      }
+fastify.post<{ Params: Params }>(
+  '/clientes/:id/transacoes',
+  {
+    schema: {
+      params: { type: 'object', properties: { id: { type: 'integer' } } },
+      body: tBodySchema,
     },
-  );
-});
+  },
+  (req, res) => {
+    const { id } = req.params;
+    const clientId: number = Number(id); // TODO: check if it is a number
+    // if (clientId < 0) { // cheat and add a clientId > 5 check?
+    //     reply.code(404).send({ error: 'Not Found' });
+    // }
 
-const port = 3001;
+    // const { valor, tipo, descricao } = req.body as Transaction;
+
+    const bodyData = req.body as Transaction;
+
+    console.log('Client id:', clientId);
+    console.log('Client bodyData:', bodyData);
+
+    // limite deve ser o limite cadastrado do cliente.
+    // saldo deve ser o novo saldo após a conclusão da transação.
+
+    res.code(200).send({
+      limite: 100000,
+      saldo: -9098,
+    });
+  },
+);
+
+// extract
+fastify.get<{ Params: Params }>(
+  '/clientes/:id/extrato',
+  {
+    schema: {
+      params: { type: 'object', properties: { id: { type: 'integer' } } },
+    },
+  },
+  (req, res) => {
+    const { id } = req.params;
+    const clientId: number = Number(id); // TODO: check if it is a number
+    // if (clientId < 0) { // cheat and add a clientId > 5 check?
+    //     reply.code(404).send({ error: 'Not Found' });
+    // }
+
+    console.log('Client id:', clientId);
+
+    res.code(200).send({
+      saldo: {
+        total: -9098,
+        data_extrato: '2024-01-17T02:34:41.217753Z',
+        limite: 100000,
+      },
+      // last 10
+      ultimas_transacoes: [
+        {
+          valor: 10,
+          tipo: 'c',
+          descricao: 'descricao',
+          realizada_em: '2024-01-17T02:34:38.543030Z',
+        },
+        {
+          valor: 90000,
+          tipo: 'd',
+          descricao: 'descricao',
+          realizada_em: '2024-01-17T02:34:38.543030Z',
+        },
+      ],
+    });
+  },
+);
+
+const port = Number(process.env.PORT) || 3001;
 // Run the server!
 fastify.listen({ port }, (err) => {
   if (err) throw err;
