@@ -1,5 +1,8 @@
 import Fastify from 'fastify';
+import numCPUs from 'node:os';
 import { getBalance, transactionUpdateBalance } from './db';
+
+console.log('numCPUs:', numCPUs.availableParallelism());
 
 const fastify = Fastify({
   logger: true,

@@ -20,7 +20,7 @@ interface Transaction {
 
 const pool = new Pool({
   user: 'postgres',
-  host: '172.17.0.2',
+  host: process.env.DB_HOSTNAME || 'localhost',
   database: 'postgres',
   password: 'mysecretpassword',
   port: 5432,
