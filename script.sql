@@ -2,7 +2,8 @@ CREATE UNLOGGED TABLE client (
 	id SERIAL PRIMARY KEY,
 	lim INTEGER NOT NULL,
 	bal INTEGER NOT NULL DEFAULT 0,
-	name VARCHAR(50) NOT NULL
+	name VARCHAR(50) NOT NULL,
+	CONSTRAINT balance_limit CHECK (bal >= lim * -1)
 );
 
 CREATE UNLOGGED TABLE transaction (
@@ -15,6 +16,8 @@ CREATE UNLOGGED TABLE transaction (
 	CONSTRAINT fk_client_transaction_id
 		FOREIGN KEY (cid) REFERENCES client(id)
 );
+
+CREATE INDEX idx_transaction_cid ON transaction (cid);
 
 DO $$
 BEGIN
