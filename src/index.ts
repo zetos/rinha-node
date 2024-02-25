@@ -97,8 +97,8 @@ fastify.get<{ Params: Params }>(
 
 const port = Number(process.env.PORT) || 3001;
 // Run the server!
-fastify.listen({ port }, (err) => {
+fastify.listen({ port, host: '0.0.0.0' }, (err) => {
   if (err) throw err;
   // Server is now listening on ${address}
-  console.info(`Fastify server is listening at http://localhost:${port}`);
+  console.info(`Fastify server is listening at http://0.0.0.0:${port}`);
 });
