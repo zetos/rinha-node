@@ -9,13 +9,15 @@ services:
     hostname: api01
     environment:
       - DB_HOSTNAME=db
-      - PORT=3001
+      - PORT=8080
     
     # Não é necessário expor qualquer porta além da porta do load balancer,
     # mas é comum as pessoas o fazerem para testarem suas APIs e conectarem
     # ao banco de dados na fase de desenvolvimento.
-    ports:
-      - "8081:3001"
+    # ports:
+    #   - "8081:3001"
+    expose:
+      - "8080"
     depends_on:
       - db
     deploy:
@@ -28,11 +30,8 @@ services:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
     <<: *api 
     hostname: api02
-    environment:
-      - DB_HOSTNAME=db
-      - PORT=3001
-    ports:
-      - "8082:3001"
+    # ports:
+    #   - "8082:3001"
  
   nginx:
     image: nginx:latest
