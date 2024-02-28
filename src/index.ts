@@ -1,11 +1,10 @@
 import Fastify from 'fastify';
-import numCPUs from 'node:os';
+import process from 'node:process';
+
 import { getBalance, transactionUpdateBalance } from './db';
 
-console.log(':: numCPUs:', numCPUs.availableParallelism());
-
 const fastify = Fastify({
-  logger: true,
+  logger: false,
 });
 
 interface Params {
@@ -92,7 +91,6 @@ fastify.get<{ Params: Params }>(
 );
 
 const port = Number(process.env.PORT) || 3001;
-// Run the server!
 fastify.listen({ port, host: '0.0.0.0' }, (err) => {
   if (err) throw err;
   console.info(`Fastify server is listening at http://0.0.0.0:${port}`);
