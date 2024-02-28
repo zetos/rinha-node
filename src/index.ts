@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import numCPUs from 'node:os';
 import { getBalance, transactionUpdateBalance } from './db';
 
-console.log('numCPUs:', numCPUs.availableParallelism());
+console.log(':: numCPUs:', numCPUs.availableParallelism());
 
 const fastify = Fastify({
   logger: true,
@@ -45,9 +45,6 @@ fastify.post<{ Params: Params }>(
 
     const bodyData = req.body as Transaction;
 
-    console.log('Client id:', clientId);
-    console.log('Client bodyData:', bodyData);
-
     const result = await transactionUpdateBalance(
       clientId,
       bodyData.tipo,
@@ -55,7 +52,6 @@ fastify.post<{ Params: Params }>(
       bodyData.descricao,
     );
 
-    console.log('result:', result);
     if (result.updated) {
       res.code(200).send({
         limite: result.lim,
@@ -99,6 +95,5 @@ const port = Number(process.env.PORT) || 3001;
 // Run the server!
 fastify.listen({ port, host: '0.0.0.0' }, (err) => {
   if (err) throw err;
-  // Server is now listening on ${address}
   console.info(`Fastify server is listening at http://0.0.0.0:${port}`);
 });
