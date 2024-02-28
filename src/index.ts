@@ -52,12 +52,12 @@ fastify.post<{ Params: Params }>(
     );
 
     if (result.updated) {
-      res.code(200).send({
+      return res.code(200).send({
         limite: result.lim,
         saldo: result.bal,
       });
     } else {
-      res.code(422).send();
+      return res.code(422).send();
     }
   },
 );
@@ -79,7 +79,11 @@ fastify.get<{ Params: Params }>(
 
     const balance = await getBalance(clientId);
 
-    res.code(200).send({
+    if (!balance) {
+      return res.code(404).send();
+    }
+
+    return res.code(200).send({
       saldo: {
         total: balance.bal,
         data_extrato: balance.current_time,
