@@ -23,8 +23,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.4"
-          memory: "115MB"
+          cpus: "0.3"
+          memory: "80MB"
 
   api02:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
@@ -50,25 +50,21 @@ services:
           memory: "20MB"
 
   db:
-    image: postgres:latest
-    hostname: db
+    image: mongo:latest
     environment:
-      - POSTGRES_PASSWORD=123
-      - POSTGRES_USER=admin
-      - POSTGRES_DB=rinha
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=123
+      - MONGO_INITDB_DATABASE=rinha
     ports:
-      - "5432:5432"
+      - "27017:27017" # MongoDB default port
     volumes:
-      - ./script.sql:/docker-entrypoint-initdb.d/script.sql
+      - ./mongo_init.js:/docker-entrypoint-initdb.d/mongo_init.js # Optional: MongoDB initialization script
+      - ./mongod.conf:/etc/mongod.conf:ro
     deploy:
       resources:
         limits:
-          # Note que a soma de todos os limites dos serviços
-          # aqui declarados é de 1.5 unidades de CPU e 550MB
-          # de memória. A distribuição feita aqui é apenas
-          # um exemplo – distribua como quiser.
-          cpus: "0.6"
-          memory: "250MB"
+          cpus: "0.8"
+          memory: "410MB"
 
 # O uso do modo `bridge` deve ser adequado à carga que será usada no teste.
 # A edição anterior se beneficiou do modo host pois o volume de requisições

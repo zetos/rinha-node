@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import process from 'node:process';
 
-import { getBalance, transactionUpdateBalance } from './db';
+import { transactionUpdateBalance, getBalance, connectDatabase } from './db';
 
 const fastify = Fastify({
   logger: false,
@@ -38,9 +38,6 @@ fastify.post<{ Params: Params }>(
   async (req, res) => {
     const { id } = req.params;
     const clientId: number = Number(id);
-    // if (clientId < 0) { // cheat and add a clientId > 5 check?
-    //     reply.code(404).send({ error: 'Not Found' });
-    // }
 
     const bodyData = req.body as Transaction;
 
@@ -73,9 +70,6 @@ fastify.get<{ Params: Params }>(
   async (req, res) => {
     const { id } = req.params;
     const clientId: number = Number(id);
-    // if (clientId < 0) { // cheat and add a clientId > 5 check?
-    //     reply.code(404).send({ error: 'Not Found' });
-    // }
 
     const balance = await getBalance(clientId);
 
@@ -95,7 +89,8 @@ fastify.get<{ Params: Params }>(
 );
 
 const port = Number(process.env.PORT) || 3001;
-fastify.listen({ port, host: '0.0.0.0' }, (err) => {
+fastify.listen({ port, host: '0.0.0.0' }, async (err) => {
   if (err) throw err;
+  await connectDatabase();
   console.info(`Fastify server is listening at http://0.0.0.0:${port}`);
 });

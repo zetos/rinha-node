@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg';
+import { Db, MongoClient } from 'mongodb';
 
 type UpdateResult = { bal?: number; lim?: number; updated: boolean };
 
@@ -10,21 +10,44 @@ interface BalanceAndTransactions {
 }
 
 interface Transaction {
-  id: number;
-  cid: number;
   amount: number;
   type: string;
   c_at: Date;
   descr: string;
 }
 
-const pool = new Pool({
-  user: 'admin',
-  host: process.env.DB_HOSTNAME || 'localhost',
-  database: 'rinha',
-  password: '123',
-  port: 5432,
-});
+interface Client {
+  _id: string;
+  id: number;
+  lim: number;
+  bal: number;
+  name: string;
+  transactions: Transaction[];
+}
+
+const client = new MongoClient('mongodb://admin:123@db:27017');
+
+let db: Db;
+
+async function connectDatabase(): Promise<void> {
+  try {
+    await client.connect();
+    console.info('Connected to mongodb');
+    db = client.db('rinha');
+  } catch (error) {
+    console.error('Error connecting to database:', error);
+    throw error;
+  }
+}
+
+async function disconnectDatabase(): Promise<void> {
+  try {
+    await client.close();
+  } catch (error) {
+    console.error('Error disconnecting from database:', error);
+    throw error;
+  }
+}
 
 const transactionUpdateBalance = async (
   clientId: number,
@@ -32,78 +55,100 @@ const transactionUpdateBalance = async (
   amount: number,
   description: string,
 ): Promise<UpdateResult> => {
-  const client = await pool.connect();
+  // await client.connect();
+  // const db = client.db('rinha');
 
   try {
-    await client.query('BEGIN');
+    const c = (await db
+      .collection('client')
+      .findOne<Client>({ id: clientId })) as Client | null;
 
-    const result: QueryResult<{
-      bal: number;
-      lim: number;
-    }> = await client.query(
-      `WITH inserted_transaction AS (
-          INSERT INTO transaction (cid, amount, type, descr)
-        VALUES ($2, $1, $3, $4)
-        )
-        UPDATE client
-          SET bal = bal ${type === 'd' ? '-' : '+'} $1
-          WHERE id = $2
-          RETURNING bal, lim
-        `,
-      [amount, clientId, type, description],
-    );
+    if (!c) {
+      throw new Error('Client not found');
+    }
 
-    await client.query('COMMIT');
+    const newBalance = type === 'd' ? c.bal - amount : c.bal + amount;
 
-    const { bal, lim } = result.rows[0];
+    if (newBalance < -c.lim) {
+      throw new Error('New balance violates balance limit constraint');
+    }
 
-    return { bal, lim, updated: true };
+    const updatedClient = await db
+      .collection<Client>('client')
+      .findOneAndUpdate(
+        { id: clientId },
+        {
+          $inc: { bal: type === 'd' ? -amount : amount },
+          $push: {
+            transactions: {
+              amount: amount,
+              type: type, // Assuming this is a credit transaction, adjust as needed
+              descr: description, // Replace with actual description
+              c_at: new Date(), // Set created_at to current date and time
+            },
+          },
+        },
+        { returnDocument: 'after' },
+      );
+
+    return { bal: updatedClient!.bal, lim: updatedClient!.lim, updated: true };
   } catch (e) {
-    await client.query('ROLLBACK');
-    console.error('Error, rollingback.', e);
+    console.error('Error:', e);
+    // await disconnectDatabase();
     return { updated: false };
-  } finally {
-    // console.log('finally');
-    client.release();
   }
 };
 
 const getBalance = async (
   clientId: number,
 ): Promise<BalanceAndTransactions> => {
-  const client = await pool.connect();
+  // await client.connect();
+  // const db = client.db('rinha');
 
   try {
-    const { rows } = await client.query(
-      `WITH client_balance AS (
-        SELECT bal, lim
-        FROM client
-        WHERE id = $1
-    ),
-    latest_transactions AS (
-        SELECT *
-        FROM transaction
-        WHERE cid = $1
-        ORDER BY c_at DESC
-        LIMIT 10
-    )
-    SELECT cb.bal, cb.lim, NOW() as current_time,
-           json_agg(json_build_object(
-               'valor', lt.amount,
-               'tipo', lt.type,
-               'realizada_em', lt.c_at,
-               'descricao', lt.descr
-           )) AS transactions
-    FROM client_balance cb
-    LEFT JOIN latest_transactions lt ON true
-    GROUP BY cb.bal, cb.lim;`,
-      [clientId],
+    const c = await db.collection('client').findOne<Client>(
+      { id: clientId },
+      {
+        projection: {
+          id: 1,
+          lim: 1,
+          bal: 1,
+          name: 1,
+          transactions: {
+            $slice: -10, // Limit to the last 10 transactions
+          },
+        },
+        sort: { 'transactions.c_at': 1 },
+      },
     );
 
-    return rows[0] as BalanceAndTransactions;
-  } finally {
-    client.release();
+    if (!c) {
+      throw new Error('Client not found');
+    }
+
+    const sortedAndLimitedTransactions = c.transactions
+      ? c.transactions.sort((a, b) => b.c_at.getTime() - a.c_at.getTime())
+      : [];
+
+    return {
+      bal: c.bal,
+      lim: c.lim,
+      current_time: new Date(),
+      transactions: sortedAndLimitedTransactions,
+    };
+  } catch (e) {
+    console.error('err:', e);
+    // await disconnectDatabase();
+    throw new Error('getBalance error.');
   }
+  // finally {
+  //   await client.close();
+  // }
 };
 
-export { transactionUpdateBalance, getBalance };
+export {
+  transactionUpdateBalance,
+  getBalance,
+  connectDatabase,
+  disconnectDatabase,
+};
