@@ -43,10 +43,6 @@ services:
     ports:
         # Obrigatório expor/usar a porta 9999 no load balancer!
       - "9999:9999"
-    ulimits:
-      nofile:
-        soft: 2005
-        hard: 2005
     deploy:
       resources:
         limits:
