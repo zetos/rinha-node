@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg';
+import postgres from 'postgres';
 
 type UpdateResult = { bal?: number; lim?: number; updated: boolean };
 
@@ -10,15 +10,13 @@ interface BalanceAndTransactions {
 }
 
 interface Transaction {
-  id: number;
-  cid: number;
-  amount: number;
-  type: string;
-  c_at: Date;
-  descr: string;
+  valor: number;
+  tipo: string;
+  realizada_em: Date;
+  descricao: string;
 }
 
-const pool = new Pool({
+const sql = postgres({
   user: 'admin',
   host: process.env.DB_HOSTNAME || 'localhost',
   database: 'rinha',
@@ -32,70 +30,50 @@ const transactionUpdateBalance = async (
   amount: number,
   description: string,
 ): Promise<UpdateResult> => {
-  const client = await pool.connect();
-
   try {
-    const result: QueryResult<{
-      bal: number;
-      lim: number;
-    }> = await client.query(
-      `WITH inserted_transaction AS (
+    const result = await sql`WITH inserted_transaction AS (
           INSERT INTO transaction (cid, amount, type, descr)
-        VALUES ($2, $1, $3, $4)
+        VALUES (${clientId}, ${amount}, ${type}, ${description})
         )
         UPDATE client
-          SET bal = bal ${type === 'd' ? '-' : '+'} $1
-          WHERE id = $2
+          SET bal = bal ${type === 'd' ? sql`-` : sql`+`} ${amount}
+          WHERE id = ${clientId}
           RETURNING bal, lim
-        `,
-      [amount, clientId, type, description],
-    );
+        `;
 
-    const { bal, lim } = result.rows[0];
-
-    return { bal, lim, updated: true };
+    return { bal: result[0].bal, lim: result[0].lim, updated: true };
   } catch (e) {
     return { updated: false };
-  } finally {
-    client.release();
   }
 };
 
 const getBalance = async (
   clientId: number,
 ): Promise<BalanceAndTransactions> => {
-  const client = await pool.connect();
-
   try {
-    const { rows } = await client.query(
-      `WITH client_balance AS (
-        SELECT bal, lim
-        FROM client
-        WHERE id = $1
-    ),
-    latest_transactions AS (
-        SELECT *
+    const result = await sql`
+    WITH latest_transactions AS (
+        SELECT cid, amount, type, c_at, descr
         FROM transaction
-        WHERE cid = $1
+        WHERE cid = ${clientId}
         ORDER BY c_at DESC
         LIMIT 10
     )
-    SELECT cb.bal, cb.lim, NOW() as current_time,
+    SELECT c.bal, c.lim, NOW() as current_time,
            json_agg(json_build_object(
                'valor', lt.amount,
                'tipo', lt.type,
                'realizada_em', lt.c_at,
                'descricao', lt.descr
            )) AS transactions
-    FROM client_balance cb
-    LEFT JOIN latest_transactions lt ON true
-    GROUP BY cb.bal, cb.lim;`,
-      [clientId],
-    );
+    FROM client c
+    INNER JOIN latest_transactions lt ON c.id = lt.cid
+    WHERE c.id = ${clientId}
+    GROUP BY c.bal, c.lim;`;
 
-    return rows[0] as BalanceAndTransactions;
-  } finally {
-    client.release();
+    return result[0] as BalanceAndTransactions;
+  } catch (e) {
+    throw e;
   }
 };
 

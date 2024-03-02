@@ -89,7 +89,9 @@ fastify.get<{ Params: Params }>(
         data_extrato: balance.current_time,
         limite: balance.lim,
       },
-      ultimas_transacoes: balance.transactions,
+      ultimas_transacoes: balance.transactions[0].tipo
+        ? balance.transactions[0]
+        : [],
     });
   },
 );
