@@ -90,7 +90,7 @@ fastify.get<{ Params: Params }>(
         limite: balance.lim,
       },
       ultimas_transacoes: balance.transactions[0].tipo
-        ? balance.transactions[0]
+        ? balance.transactions
         : [],
     });
   },
