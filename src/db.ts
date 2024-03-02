@@ -35,8 +35,6 @@ const transactionUpdateBalance = async (
   const client = await pool.connect();
 
   try {
-    await client.query('BEGIN');
-
     const result: QueryResult<{
       bal: number;
       lim: number;
@@ -53,13 +51,10 @@ const transactionUpdateBalance = async (
       [amount, clientId, type, description],
     );
 
-    await client.query('COMMIT');
-
     const { bal, lim } = result.rows[0];
 
     return { bal, lim, updated: true };
   } catch (e) {
-    await client.query('ROLLBACK');
     console.error('Error, rollingback.', e);
     return { updated: false };
   } finally {
