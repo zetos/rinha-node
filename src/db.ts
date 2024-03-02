@@ -68,28 +68,24 @@ const getBalance = async (
 
   try {
     const { rows } = await client.query(
-      `WITH client_balance AS (
-        SELECT bal, lim
-        FROM client
-        WHERE id = $1
-    ),
-    latest_transactions AS (
-        SELECT *
+      `WITH latest_transactions AS (
+        SELECT cid, amount, type, c_at, descr
         FROM transaction
         WHERE cid = $1
         ORDER BY c_at DESC
         LIMIT 10
     )
-    SELECT cb.bal, cb.lim, NOW() as current_time,
+    SELECT c.bal, c.lim, NOW() as current_time,
            json_agg(json_build_object(
                'valor', lt.amount,
                'tipo', lt.type,
                'realizada_em', lt.c_at,
                'descricao', lt.descr
            )) AS transactions
-    FROM client_balance cb
-    LEFT JOIN latest_transactions lt ON true
-    GROUP BY cb.bal, cb.lim;`,
+    FROM client c
+    INNER JOIN latest_transactions lt ON c.id = lt.cid
+    WHERE c.id = $1
+    GROUP BY c.bal, c.lim;`,
       [clientId],
     );
 
