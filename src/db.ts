@@ -67,7 +67,7 @@ const getBalance = async (
                'descricao', lt.descr
            )) AS transactions
     FROM client c
-    INNER JOIN latest_transactions lt ON c.id = lt.cid
+    LEFT JOIN latest_transactions lt ON c.id = lt.cid
     WHERE c.id = ${clientId}
     GROUP BY c.bal, c.lim;`;
 
