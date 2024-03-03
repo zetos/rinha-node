@@ -43,15 +43,13 @@ app.post('/clientes/:id/transacoes', async (res, req) => {
 
       res.cork(() => {
         if (result.updated) {
-          res
-            .writeStatus('200OK')
-            .writeHeader('content-type', 'application/json')
-            .end(
-              JSON.stringify({
-                limite: result.lim,
-                saldo: result.bal,
-              }),
-            );
+          res.writeHeader('Content-Type', 'application/json');
+          res.end(
+            JSON.stringify({
+              limite: result.lim,
+              saldo: result.bal,
+            }),
+          );
         } else {
           res.writeStatus('422').end();
         }
@@ -79,21 +77,19 @@ app.get('/clientes/:id/extrato', async (res, req) => {
     }
 
     res.cork(() => {
-      res
-        .writeStatus('200OK')
-        .writeHeader('content-type', 'application/json')
-        .end(
-          JSON.stringify({
-            saldo: {
-              total: balance.bal,
-              data_extrato: balance.current_time,
-              limite: balance.lim,
-            },
-            ultimas_transacoes: balance.transactions[0].tipo
-              ? balance.transactions
-              : [],
-          }),
-        );
+      res.writeHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify({
+          saldo: {
+            total: balance.bal,
+            data_extrato: balance.current_time,
+            limite: balance.lim,
+          },
+          ultimas_transacoes: balance.transactions[0].tipo
+            ? balance.transactions
+            : [],
+        }),
+      );
     });
   } catch (e) {
     console.error('caugh !!', e);
