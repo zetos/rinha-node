@@ -1,101 +1,115 @@
-import Fastify from 'fastify';
 import process from 'node:process';
+import { App } from 'uWebSockets.js';
 
 import { getBalance, transactionUpdateBalance } from './db';
+import { Type as t, type Static } from '@sinclair/typebox';
+import { Value } from '@sinclair/typebox/value';
 
-const fastify = Fastify({
-  logger: false,
+const Post = t.Object({
+  valor: t.Integer(),
+  tipo: t.Union([t.Literal('c'), t.Literal('d')]),
+  descricao: t.String({ minLength: 1, maxLength: 10 }),
 });
 
-interface Params {
-  id: number;
-}
+type Transaction = Static<typeof Post>;
 
-interface Transaction {
-  valor: number;
-  tipo: 'c' | 'd';
-  descricao: string;
-}
+const app = App();
 
-const tBodySchema = {
-  type: 'object',
-  required: ['valor', 'tipo', 'descricao'],
-  properties: {
-    valor: { type: 'integer', minimum: 0 },
-    tipo: { type: 'string', enum: ['c', 'd'] },
-    descricao: { type: 'string', minLength: 1, maxLength: 10 },
-  },
+const handleArrayBuffer = (data: ArrayBuffer | string): Transaction => {
+  if (data instanceof ArrayBuffer) {
+    const decoder = new TextDecoder();
+    return JSON.parse(decoder.decode(data));
+  }
+  return JSON.parse(data); // 🙈
 };
 
-fastify.post<{ Params: Params }>(
-  '/clientes/:id/transacoes',
-  {
-    schema: {
-      params: { type: 'object', properties: { id: { type: 'integer' } } },
-      body: tBodySchema,
-    },
-  },
-  async (req, res) => {
-    const { id } = req.params;
-    const clientId: number = Number(id);
-    // if (clientId < 0) { // cheat and add a clientId > 5 check?
-    //     reply.code(404).send({ error: 'Not Found' });
-    // }
+app.post('/clientes/:id/transacoes', async (res, req) => {
+  res.onAborted(() => {
+    console.info('Request aborted');
+    res.writeStatus('400').end();
+  });
 
-    const bodyData = req.body as Transaction;
+  const clientId = +req.getParameter(0);
+  res.onData(async (data) => {
+    const bodyData = handleArrayBuffer(data);
 
-    const result = await transactionUpdateBalance(
-      clientId,
-      bodyData.tipo,
-      bodyData.valor,
-      bodyData.descricao,
-    );
+    if (Value.Check(Post, bodyData)) {
+      const result = await transactionUpdateBalance(
+        clientId,
+        bodyData.tipo,
+        bodyData.valor,
+        bodyData.descricao,
+      );
 
-    if (result.updated) {
-      return res.code(200).send({
-        limite: result.lim,
-        saldo: result.bal,
+      res.cork(() => {
+        if (result.updated) {
+          res.writeHeader('Content-Type', 'application/json');
+          res.end(
+            JSON.stringify({
+              limite: result.lim,
+              saldo: result.bal,
+            }),
+          );
+        } else {
+          res.writeStatus('422').end();
+        }
       });
     } else {
-      return res.code(422).send();
+      res.cork(() => {
+        res.writeStatus('400').end();
+      });
     }
-  },
-);
+  });
+});
 
 // extract
-fastify.get<{ Params: Params }>(
-  '/clientes/:id/extrato',
-  {
-    schema: {
-      params: { type: 'object', properties: { id: { type: 'integer' } } },
-    },
-  },
-  async (req, res) => {
-    const { id } = req.params;
-    const clientId: number = Number(id);
-    // if (clientId < 0) { // cheat and add a clientId > 5 check?
-    //     reply.code(404).send({ error: 'Not Found' });
-    // }
+app.get('/clientes/:id/extrato', async (res, req) => {
+  res.onAborted(() => {
+    console.info('Request aborted');
+  });
 
+  const clientId = +req.getParameter(0);
+  try {
     const balance = await getBalance(clientId);
 
     if (!balance) {
-      return res.code(404).send();
+      throw new Error('Not Found');
     }
 
-    return res.code(200).send({
-      saldo: {
-        total: balance.bal,
-        data_extrato: balance.current_time,
-        limite: balance.lim,
-      },
-      ultimas_transacoes: balance.transactions,
+    res.cork(() => {
+      res.writeHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify({
+          saldo: {
+            total: balance.bal,
+            data_extrato: balance.current_time,
+            limite: balance.lim,
+          },
+          ultimas_transacoes: balance.transactions[0].tipo
+            ? balance.transactions
+            : [],
+        }),
+      );
     });
-  },
-);
+  } catch (e) {
+    console.error('caugh !!', e);
+    res.cork(() => {
+      res.writeStatus('404').end('Not Found');
+    });
+  }
+});
+
+app.get('/', async (res) => {
+  res.writeStatus('200 OK').writeHeader('IsExample', 'Yes').end('Hello there!');
+});
 
 const port = Number(process.env.PORT) || 3001;
-fastify.listen({ port, host: '0.0.0.0' }, (err) => {
-  if (err) throw err;
-  console.info(`Fastify server is listening at http://0.0.0.0:${port}`);
+
+app.listen(port, async (listenSocket) => {
+  if (listenSocket) {
+    console.info(
+      `uws server is listening at http://0.0.0.0:${port}`,
+      listenSocket,
+    );
+  }
 });
