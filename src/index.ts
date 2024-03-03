@@ -99,10 +99,6 @@ app.get('/clientes/:id/extrato', async (res, req) => {
   }
 });
 
-app.get('/', async (res) => {
-  res.writeStatus('200 OK').writeHeader('IsExample', 'Yes').end('Hello there!');
-});
-
 const port = Number(process.env.PORT) || 3001;
 
 app.listen(port, async (listenSocket) => {
