@@ -1,5 +1,7 @@
 # Rinha Node
 
+> Created to compete in: [rinha de back end 2024](https://github.com/zanfranceschi/rinha-de-backend-2024-q1)
+
 Summary:
 
 - `nginx` as load balancer.
