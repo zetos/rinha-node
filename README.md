@@ -8,7 +8,6 @@ Summary:
 - `postgres` as database.
 - `nodeJS` as API.
 - [repo link](https://github.com/zetos/rinha-node)
-- contact: rasecm@gmail.com
 
 ## Services
 
